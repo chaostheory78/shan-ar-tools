@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SHAN AR TOOLS</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#000608;
+  color:#00ffaa;
+  font-family:'Share Tech Mono', monospace;
+  min-height:100vh;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:30px 20px;
+  gap:40px;
+}
+h1 {
+  font-size:clamp(1.2rem, 6vw, 2rem);
+  letter-spacing:0.4em;
+  text-shadow:0 0 20px #00ffaa;
+  text-align:center;
+}
+.sub {
+  font-size:0.6rem; letter-spacing:0.3em;
+  color:#003322; margin-top:6px; text-align:center;
+}
+.tools {
+  display:flex; flex-direction:column; gap:16px; width:100%; max-width:380px;
+}
+.tool-card {
+  display:block;
+  border:1px solid #00ffaa25;
+  background:#00110a60;
+  padding:20px 24px;
+  text-decoration:none;
+  color:#00ffaa;
+  transition:all 0.2s;
+  position:relative; overflow:hidden;
+}
+.tool-card::before {
+  content:'';
+  position:absolute; inset:0;
+  background:linear-gradient(90deg, transparent, #00ffaa08, transparent);
+  transform:translateX(-100%);
+  transition:transform 0.4s;
+}
+.tool-card:hover::before, .tool-card:active::before { transform:translateX(100%); }
+.tool-card:hover, .tool-card:active {
+  border-color:#00ffaa50;
+  background:#00220f80;
+}
+.tool-label { font-size:0.55rem; letter-spacing:0.3em; color:#00ffaa50; margin-bottom:6px; }
+.tool-name  { font-size:1rem; letter-spacing:0.15em; }
+.tool-desc  { font-size:0.62rem; color:#007755; letter-spacing:0.1em; margin-top:5px; line-height:1.6; }
+.tool-tag   { font-size:0.55rem; color:#00ffaa30; margin-top:8px; }
+
+footer {
+  font-size:0.55rem; letter-spacing:0.2em;
+  color:#002211; text-align:center;
+}
+
+/* scanlines */
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background:repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 4px
+  );
+  pointer-events:none; z-index:99;
+}
+</style>
+</head>
+<body>
+
+<div>
+  <h1>SHAN AR TOOLS</h1>
+  <div class="sub">AUGMENTED REALITY EXPERIMENTS · PORTSMOUTH · 2026</div>
+</div>
+
+<div class="tools">
+
+  <a class="tool-card" href="./spiral-marker.html">
+    <div class="tool-label">TOOL 01 · SPIRAL PROJECT</div>
+    <div class="tool-name">FIBONACCI SPIRAL AR</div>
+    <div class="tool-desc">
+      Point at the Portsmouth fountain.<br>
+      A 3D golden spiral locks into real space.<br>
+      Walk a full 360° around it.
+    </div>
+    <div class="tool-tag">MindAR · A-Frame · Image Marker</div>
+  </a>
+
+  <a class="tool-card" href="./ar-card/index.html">
+    <div class="tool-label">TOOL 02 · AR CARD</div>
+    <div class="tool-name">AUGMENTED CARD GENERATOR</div>
+    <div class="tool-desc">
+      Pins a card image in real 3D space<br>
+      using the phone accelerometer.<br>
+      Tilt to explore. No marker needed.
+    </div>
+    <div class="tool-tag">Accelerometer API · Camera · Web AR</div>
+  </a>
+
+  <a class="tool-card" href="./navigator.html">
+    <div class="tool-label">TOOL 03 · FLIGHT SIM</div>
+    <div class="tool-name">NAVIGATOR</div>
+    <div class="tool-desc">
+      Fly a custom craft through 3D space.<br>
+      Tilt phone to control pitch and roll.<br>
+      Smoke contrail traces your path through time.
+    </div>
+    <div class="tool-tag">Gyroscope · Three.js · 4D Trail</div>
+  </a>
+
+</div>
+
+<footer>chaostheory78 · github.io · THE SPIRAL PROJECT</footer>
+
+</body>
+</html>
