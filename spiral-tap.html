@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>THE SPIRAL — TAP TO LOCK</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; background:#000; }
+
+#cam {
+  position:fixed; inset:0;
+  width:100%; height:100%;
+  object-fit:cover; z-index:0;
+}
+#c {
+  position:fixed; inset:0;
+  width:100%; height:100%;
+  z-index:1; background:transparent;
+}
+#scanlines {
+  position:fixed; inset:0; z-index:10; pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);
+}
+
+/* ── SPLASH ── */
+#splash {
+  position:fixed; inset:0;
+  background:radial-gradient(ellipse at center,#000e18 0%,#000005 100%);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:16px; padding:30px; text-align:center;
+  z-index:200; font-family:'Share Tech Mono',monospace;
+  transition:opacity 0.8s;
+}
+#splash.hide { opacity:0; pointer-events:none; }
+.s-title { color:#00ffaa; font-size:1.5rem; letter-spacing:0.38em; text-shadow:0 0 18px #00ffaa; }
+.s-ring {
+  width:48px; height:48px;
+  border:2px solid transparent;
+  border-top-color:#00ffaa; border-right-color:#00aaff;
+  border-radius:50%; animation:spin 1.1s linear infinite;
+}
+.s-sub { color:#007755; font-size:0.68rem; letter-spacing:0.12em; line-height:1.9; max-width:270px; }
+.s-btn {
+  margin-top:8px; padding:12px 36px;
+  background:transparent; border:1px solid #00ffaa50;
+  color:#00ffaa; font-family:inherit; font-size:0.85rem;
+  letter-spacing:0.4em; cursor:pointer;
+  transition:border-color 0.2s, background 0.2s;
+  text-shadow:0 0 8px #00ffaa60;
+}
+.s-btn:hover, .s-btn:active {
+  border-color:#00ffaa; background:rgba(0,255,170,0.07);
+}
+
+/* ── HUD ── */
+#hud { position:fixed; inset:0; pointer-events:none; z-index:50; display:none; }
+.corner { position:absolute; width:22px; height:22px; border-color:rgba(0,255,170,0.35); border-style:solid; }
+.ctl { top:14px; left:14px; border-width:1px 0 0 1px; }
+.ctr { top:14px; right:14px; border-width:1px 1px 0 0; }
+.cbl { bottom:14px; left:14px; border-width:0 0 1px 1px; }
+.cbr { bottom:14px; right:14px; border-width:0 1px 1px 0; }
+#hud-top {
+  position:absolute; top:18px; left:50%; transform:translateX(-50%);
+  font-family:'Share Tech Mono',monospace; font-size:0.55rem;
+  letter-spacing:0.3em; color:rgba(0,255,170,0.35); white-space:nowrap;
+}
+#hud-status {
+  position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
+  font-family:'Share Tech Mono',monospace; font-size:0.65rem;
+  letter-spacing:0.15em; color:#00ffaa;
+  text-shadow:0 0 10px #00ffaa70;
+  background:rgba(0,17,10,0.88); border:1px solid rgba(0,255,170,0.2);
+  padding:7px 20px; border-radius:2px; white-space:nowrap;
+  backdrop-filter:blur(4px); transition:color 0.4s;
+}
+#tap-hint {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  font-family:'Share Tech Mono',monospace;
+  font-size:0.75rem; letter-spacing:0.25em;
+  color:rgba(0,255,170,0.5);
+  text-align:center; line-height:2;
+  animation:hintPulse 2s ease-in-out infinite;
+  pointer-events:none;
+}
+.crosshair {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  width:40px; height:40px;
+  pointer-events:none;
+}
+.crosshair::before, .crosshair::after {
+  content:''; position:absolute; background:rgba(0,255,170,0.4);
+}
+.crosshair::before { width:1px; height:100%; left:50%; }
+.crosshair::after  { width:100%; height:1px; top:50%; }
+
+/* lock ring animation */
+#lock-ring {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  width:60px; height:60px;
+  border:1px solid rgba(0,255,170,0);
+  border-radius:50%;
+  pointer-events:none;
+  transition:all 0.4s;
+}
+#lock-ring.locking {
+  border-color:rgba(0,255,170,0.6);
+  box-shadow:0 0 20px rgba(0,255,170,0.3);
+  animation:lockPulse 0.6s ease-in-out 1;
+}
+
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes hintPulse { 0%,100%{opacity:0.4;} 50%{opacity:0.9;} }
+@keyframes lockPulse {
+  0%{transform:translate(-50%,-50%) scale(1);}
+  50%{transform:translate(-50%,-50%) scale(1.6); border-color:rgba(0,255,170,0.9);}
+  100%{transform:translate(-50%,-50%) scale(1);}
+}
+</style>
+</head>
+<body>
+
+<!-- Camera -->
+<video id="cam" autoplay playsinline muted></video>
+
+<!-- Three.js canvas -->
+<canvas id="c"></canvas>
+
+<div id="scanlines"></div>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="s-title">THE SPIRAL</div>
+  <div class="s-ring"></div>
+  <div class="s-sub">
+    POINT YOUR CAMERA AT ANY SURFACE<br>
+    TAP TO LOCK THE SPIRAL IN SPACE<br>
+    WALK A FULL 360° AROUND IT
+  </div>
+  <button class="s-btn" id="startBtn">ENGAGE</button>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="corner ctl"></div>
+  <div class="corner ctr"></div>
+  <div class="corner cbl"></div>
+  <div class="corner cbr"></div>
+  <div id="hud-top">SPIRAL PROJECT · TEST MODE</div>
+  <div class="crosshair"></div>
+  <div id="lock-ring"></div>
+  <div id="tap-hint">TAP TO LOCK SPIRAL</div>
+  <div id="hud-status">SEARCHING...</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  THE SPIRAL — Gyroscope AR (no marker needed)
+//
+//  HOW IT WORKS:
+//  - Camera opens as live background
+//  - DeviceOrientation gives us full alpha/beta/gamma
+//  - On tap: spiral is "pinned" at current heading
+//  - As you walk around, camera view updates via
+//    orientation deltas — spiral stays fixed in world space
+//  - Three.js renders the spiral with correct parallax
+// ═══════════════════════════════════════════════════════
+
+let scene, camera, renderer, spiralGroup;
+let locked    = false;
+let lockAlpha = 0; // compass heading at lock moment
+let lockBeta  = 0;
+let rawAlpha  = 0, rawBeta = 0, rawGamma = 0;
+let smoothAlpha = 0, smoothBeta = 0, smoothGamma = 0;
+let spiralAngle = 0; // self-rotation of spiral
+
+const DISTANCE = 3.5; // metres in front of lock point
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  startCamera();
+});
+
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720} },
+      audio: false
+    });
+    document.getElementById('cam').srcObject = stream;
+    document.getElementById('cam').onloadedmetadata = () => {
+      document.getElementById('cam').play();
+      hideSplash();
+      requestOrientation();
+      buildScene();
+      bindTap();
+      render();
+    };
+  } catch(e) {
+    document.querySelector('.s-sub').textContent = '❌ Camera permission denied. Tap the lock icon in your address bar, allow camera, then reload.';
+    document.querySelector('.s-ring').style.display = 'none';
+  }
+}
+
+function hideSplash() {
+  const s = document.getElementById('splash');
+  s.classList.add('hide');
+  setTimeout(() => { s.style.display = 'none'; document.getElementById('hud').style.display = 'block'; }, 900);
+}
+
+// ── Orientation ──────────────────────────────────────
+function requestOrientation() {
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(r => {
+      if (r === 'granted') window.addEventListener('deviceorientation', onOrient, true);
+    }).catch(()=>{});
+  } else {
+    window.addEventListener('deviceorientation', onOrient, true);
+  }
+}
+
+function onOrient(e) {
+  rawAlpha = e.alpha || 0;
+  rawBeta  = e.beta  || 0;
+  rawGamma = e.gamma || 0;
+}
+
+// ── Tap to lock ──────────────────────────────────────
+function bindTap() {
+  const cv = document.getElementById('c');
+  cv.addEventListener('click', doLock);
+  cv.addEventListener('touchend', e => { e.preventDefault(); doLock(); }, {passive:false});
+}
+
+function doLock() {
+  lockAlpha = smoothAlpha;
+  lockBeta  = smoothBeta;
+  locked    = true;
+
+  // Animate lock ring
+  const ring = document.getElementById('lock-ring');
+  ring.classList.remove('locking');
+  void ring.offsetWidth;
+  ring.classList.add('locking');
+
+  document.getElementById('tap-hint').style.display   = 'none';
+  document.getElementById('hud-status').style.color   = '#00ffaa';
+  document.getElementById('hud-status').textContent   = '✦ SPIRAL LOCKED — WALK AROUND IT ✦';
+
+  // Position spiral in 3D space at lock heading
+  const aRad = (lockAlpha * Math.PI) / 180;
+  spiralGroup.position.set(
+    -Math.sin(aRad) * DISTANCE,
+    -0.5,
+    -Math.cos(aRad) * DISTANCE
+  );
+
+  setTimeout(() => {
+    document.getElementById('hud-status').textContent = 'SPIRAL PROJECT · LOCKED';
+  }, 4000);
+}
+
+// ── Three.js scene ───────────────────────────────────
+function buildScene() {
+  scene  = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.01, 100);
+  camera.position.set(0,0,0);
+
+  renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setClearColor(0x000000, 0);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 1));
+
+  buildSpiral();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+}
+
+function buildSpiral() {
+  spiralGroup = new THREE.Group();
+  spiralGroup.position.set(0, -0.5, -DISTANCE);
+
+  const PHI   = 1.6180339887;
+  const BASE  = 0.06;
+  const RINGS = 5;
+  const radii = Array.from({length:RINGS}, (_,i) => BASE * Math.pow(PHI, i * 0.75));
+
+  const arms = [
+    { colors: ['#00ffee','#00ffcc','#00ffaa','#00ee99','#00dd88'], offset: 0 },
+    { colors: ['#ffee00','#ffcc00','#ffaa00','#ff8800','#ff6600'], offset: Math.PI/2 },
+    { colors: ['#ff00ff','#ee00dd','#cc00bb','#aa0099','#880077'], offset: Math.PI },
+    { colors: ['#00aaff','#0088ee','#0066dd','#0055cc','#0044aa'], offset: Math.PI*1.5 },
+  ];
+
+  arms.forEach(arm => {
+    radii.forEach((r, i) => {
+      const geo = new THREE.TorusGeometry(r, r*0.12, 8, 48);
+      const mat = new THREE.MeshBasicMaterial({
+        color: arm.colors[i],
+        transparent: true,
+        opacity: 0.85 - i * 0.1,
+      });
+      const torus = new THREE.Mesh(geo, mat);
+
+      const stepAngle = arm.offset + i * (Math.PI / 8);
+      torus.position.set(
+        Math.cos(stepAngle) * r * 0.8,
+        i * 0.06,
+        Math.sin(stepAngle) * r * 0.3,
+      );
+      torus.rotation.x = Math.PI / 2;
+      spiralGroup.add(torus);
+    });
+  });
+
+  // Base ring
+  const baseGeo = new THREE.TorusGeometry(radii[0]*1.8, 0.004, 6, 60);
+  const baseMat = new THREE.MeshBasicMaterial({ color:0x00ffaa, transparent:true, opacity:0.5 });
+  const baseRing = new THREE.Mesh(baseGeo, baseMat);
+  baseRing.rotation.x = Math.PI/2;
+  spiralGroup.add(baseRing);
+
+  // Seed sphere
+  const seedGeo = new THREE.SphereGeometry(0.018, 16, 16);
+  const seedMat = new THREE.MeshBasicMaterial({ color:0xffffff });
+  spiralGroup.add(new THREE.Mesh(seedGeo, seedMat));
+
+  // Light pillar
+  const pillarGeo = new THREE.CylinderGeometry(0.004, 0.004, 0.8, 6);
+  const pillarMat = new THREE.MeshBasicMaterial({ color:0x00ffaa, transparent:true, opacity:0.2 });
+  const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+  pillar.position.y = 0.4;
+  spiralGroup.add(pillar);
+
+  scene.add(spiralGroup);
+}
+
+// ── Main render loop ─────────────────────────────────
+const euler = new THREE.Euler();
+const q     = new THREE.Quaternion();
+
+function render() {
+  requestAnimationFrame(render);
+
+  // Smooth orientation
+  const alphaDiff = rawAlpha - smoothAlpha;
+  // Handle 360->0 wraparound
+  const ad = ((alphaDiff + 180) % 360) - 180;
+  smoothAlpha += ad * 0.06;
+  smoothBeta  += (rawBeta  - smoothBeta)  * 0.06;
+  smoothGamma += (rawGamma - smoothGamma) * 0.06;
+
+  // Apply device orientation to camera
+  // Order: ZXY — standard for mobile portrait
+  const aRad = THREE.MathUtils.degToRad(smoothAlpha);
+  const bRad = THREE.MathUtils.degToRad(smoothBeta - 90);
+  const gRad = THREE.MathUtils.degToRad(smoothGamma);
+
+  euler.set(bRad, -aRad, -gRad, 'YXZ');
+  camera.quaternion.setFromEuler(euler);
+
+  // Spiral self-rotation
+  spiralAngle += 0.012;
+  spiralGroup.rotation.y = spiralAngle;
+
+  // Pulse pillar opacity
+  const pil = spiralGroup.children[spiralGroup.children.length - 1];
+  if (pil && pil.material) {
+    pil.material.opacity = 0.12 + 0.1 * Math.sin(spiralAngle * 2);
+  }
+
+  renderer.render(scene, camera);
+}
+</script>
+</body>
+</html>
