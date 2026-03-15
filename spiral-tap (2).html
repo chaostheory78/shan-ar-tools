@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>THE SPIRAL</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; background:#000; }
+#cam {
+  position:fixed; inset:0; width:100%; height:100%;
+  object-fit:cover; z-index:0;
+}
+#c {
+  position:fixed; inset:0; width:100%; height:100%;
+  z-index:1; background:transparent;
+}
+#scanlines {
+  position:fixed; inset:0; z-index:10; pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);
+}
+#splash {
+  position:fixed; inset:0;
+  background:radial-gradient(ellipse at center,#000e18,#000005);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:18px; padding:30px; text-align:center;
+  z-index:200; font-family:'Share Tech Mono',monospace;
+  transition:opacity 0.8s;
+}
+#splash.hide { opacity:0; pointer-events:none; }
+.s-title { color:#00ffaa; font-size:1.5rem; letter-spacing:0.38em; text-shadow:0 0 18px #00ffaa; }
+.s-ring {
+  width:48px; height:48px; border:2px solid transparent;
+  border-top-color:#00ffaa; border-right-color:#00aaff;
+  border-radius:50%; animation:spin 1.1s linear infinite;
+}
+.s-sub { color:#007755; font-size:0.68rem; letter-spacing:0.14em; line-height:2.1; max-width:270px; }
+.s-btn {
+  padding:14px 40px; background:transparent;
+  border:1px solid rgba(0,255,170,0.5); color:#00ffaa;
+  font-family:inherit; font-size:0.9rem; letter-spacing:0.35em; cursor:pointer;
+}
+.s-btn:active { background:rgba(0,255,170,0.1); }
+
+#hud { position:fixed; inset:0; pointer-events:none; z-index:50; display:none; }
+.corner { position:absolute; width:22px; height:22px; border-color:rgba(0,255,170,0.35); border-style:solid; }
+.ctl { top:14px; left:14px; border-width:1px 0 0 1px; }
+.ctr { top:14px; right:14px; border-width:1px 1px 0 0; }
+.cbl { bottom:14px; left:14px; border-width:0 0 1px 1px; }
+.cbr { bottom:14px; right:14px; border-width:0 1px 1px 0; }
+#hud-top {
+  position:absolute; top:18px; left:50%; transform:translateX(-50%);
+  font-family:'Share Tech Mono',monospace; font-size:0.55rem;
+  letter-spacing:0.28em; color:rgba(0,255,170,0.35); white-space:nowrap;
+}
+#hud-status {
+  position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
+  font-family:'Share Tech Mono',monospace; font-size:0.62rem;
+  letter-spacing:0.14em; color:#00ffaa;
+  text-shadow:0 0 10px rgba(0,255,170,0.6);
+  background:rgba(0,17,10,0.9); border:1px solid rgba(0,255,170,0.2);
+  padding:8px 22px; border-radius:2px; white-space:nowrap;
+  transition:color 0.4s;
+}
+#tap-hint {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  font-family:'Share Tech Mono',monospace;
+  font-size:0.75rem; letter-spacing:0.2em;
+  color:rgba(0,255,170,0.6); text-align:center; line-height:2.4;
+  animation:hintPulse 2s ease-in-out infinite;
+}
+.xhair {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  width:44px; height:44px; pointer-events:none;
+}
+.xhair::before, .xhair::after {
+  content:''; position:absolute; background:rgba(0,255,170,0.45);
+}
+.xhair::before { width:1px; height:100%; left:50%; }
+.xhair::after  { width:100%; height:1px; top:50%; }
+
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes hintPulse { 0%,100%{opacity:0.35;} 50%{opacity:1;} }
+</style>
+</head>
+<body>
+
+<video id="cam" autoplay playsinline muted></video>
+<canvas id="c"></canvas>
+<div id="scanlines"></div>
+
+<div id="splash">
+  <div class="s-title">THE SPIRAL</div>
+  <div class="s-ring"></div>
+  <div class="s-sub">
+    POINT YOUR CAMERA AT YOUR DOOR<br>
+    PRESS ENGAGE<br>
+    THEN TAP TO PLANT THE SPIRAL<br>
+    WALK AROUND IT — IT STAYS IN SPACE
+  </div>
+  <button class="s-btn" id="startBtn">ENGAGE</button>
+</div>
+
+<div id="hud">
+  <div class="corner ctl"></div>
+  <div class="corner ctr"></div>
+  <div class="corner cbl"></div>
+  <div class="corner cbr"></div>
+  <div id="hud-top">SPIRAL PROJECT · WORLD SPACE MODE</div>
+  <div class="xhair"></div>
+  <div id="tap-hint">AIM AT YOUR DOOR<br>TAP TO PLANT</div>
+  <div id="hud-status">MOVE PHONE — SEE IT TRACK</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  THE SPIRAL — True World Space AR
+//
+//  KEY INSIGHT:
+//  The camera quaternion is driven by real device orientation.
+//  The spiral lives at a FIXED position in world space (0,0,-3).
+//  When you move your phone, the camera rotates — so the
+//  spiral appears to stay locked in the real world.
+//  On tap: the spiral is repositioned into world space at
+//  the direction you were pointing. Now walk around —
+//  the spiral genuinely stays anchored in front of your door.
+// ═══════════════════════════════════════════════════════
+
+let scene, camera, renderer, spiralGroup;
+let locked    = false;
+let spiralTick= 0;
+
+// Raw sensor values
+let rawAlpha = 0, rawBeta = 0, rawGamma = 0;
+let hasOrientation = false;
+
+// Smoothed quaternion for camera
+const qDevice  = new THREE.Quaternion();
+const qSmooth  = new THREE.Quaternion();
+
+// Correction quaternion — aligns sensor frame to Three.js camera frame
+// Portrait mode: rotate -90° around X
+const qCorrect = new THREE.Quaternion();
+qCorrect.setFromAxisAngle(new THREE.Vector3(1,0,0), -Math.PI/2);
+
+document.getElementById('startBtn').addEventListener('click', startApp);
+
+async function startApp() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:{ ideal:'environment' } }, audio:false
+    });
+    document.getElementById('cam').srcObject = stream;
+    document.getElementById('cam').onloadedmetadata = () => {
+      document.getElementById('cam').play();
+      hideSplash();
+      listenOrientation();
+      initThree();
+      bindTap();
+      loop();
+    };
+  } catch(e) {
+    document.querySelector('.s-sub').textContent = '❌ Allow camera in browser settings then reload.';
+  }
+}
+
+function hideSplash() {
+  const s = document.getElementById('splash');
+  s.classList.add('hide');
+  setTimeout(()=>{ s.style.display='none'; document.getElementById('hud').style.display='block'; }, 900);
+}
+
+// ── Device Orientation → Quaternion ─────────────────
+function listenOrientation() {
+  const handler = (e) => {
+    if (e.alpha == null) return;
+    rawAlpha = e.alpha;
+    rawBeta  = e.beta;
+    rawGamma = e.gamma;
+    hasOrientation = true;
+
+    // Build quaternion from Euler angles — portrait Android
+    // Order: Y (alpha/heading) → X (beta/pitch) → Z (gamma/roll)
+    const euler = new THREE.Euler(
+      THREE.MathUtils.degToRad(rawBeta),
+      THREE.MathUtils.degToRad(rawAlpha),
+      THREE.MathUtils.degToRad(-rawGamma),
+      'YXZ'
+    );
+    qDevice.setFromEuler(euler);
+    // Apply correction so camera looks forward when phone is upright
+    qDevice.multiply(qCorrect);
+  };
+
+  // Try absolute first (more stable compass on Android)
+  window.addEventListener('deviceorientationabsolute', handler, true);
+  window.addEventListener('deviceorientation', handler, true);
+}
+
+// ── Tap to plant spiral ──────────────────────────────
+function bindTap() {
+  const hud = document.getElementById('hud');
+  hud.style.pointerEvents = 'all';
+  hud.addEventListener('click', plantSpiral);
+}
+
+function plantSpiral() {
+  // Get the direction the camera is currently pointing
+  // and plant the spiral 2.5m in that direction in world space
+  const dir = new THREE.Vector3(0, 0, -2.5);
+  dir.applyQuaternion(camera.quaternion);
+
+  spiralGroup.position.copy(dir);
+  spiralGroup.position.y -= 0.3; // slightly below centre
+
+  locked = true;
+
+  document.getElementById('tap-hint').style.display = 'none';
+  document.getElementById('hud-status').textContent = '✦ SPIRAL PLANTED — WALK AROUND IT ✦';
+
+  setTimeout(()=>{
+    document.getElementById('hud-status').textContent = 'SPIRAL PROJECT · WORLD LOCKED';
+  }, 4000);
+}
+
+// ── Three.js ─────────────────────────────────────────
+function initThree() {
+  scene    = new THREE.Scene();
+  // Camera starts at origin — device orientation rotates it
+  camera   = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.01, 100);
+  camera.position.set(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ canvas:document.getElementById('c'), alpha:true, antialias:true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setClearColor(0x000000, 0);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+
+  buildSpiral();
+
+  window.addEventListener('resize', ()=>{
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+}
+
+function buildSpiral() {
+  spiralGroup = new THREE.Group();
+
+  const PHI  = 1.6180339887;
+  const BASE = 0.065;
+  const N    = 5;
+  const radii= Array.from({length:N}, (_,i) => BASE * Math.pow(PHI, i * 0.78));
+
+  const arms = [
+    { colors:['#00ffee','#00ffcc','#00ffaa','#00ee99','#00cc77'], off:0 },
+    { colors:['#ffee00','#ffcc00','#ffaa00','#ff8800','#ff5500'], off:Math.PI*0.5 },
+    { colors:['#ff00ff','#ee00cc','#cc009a','#aa0077','#880055'], off:Math.PI },
+    { colors:['#00aaff','#0088ee','#0066cc','#0044aa','#003388'], off:Math.PI*1.5 },
+  ];
+
+  arms.forEach(arm => {
+    radii.forEach((r, i) => {
+      const geo = new THREE.TorusGeometry(r, r*0.13, 8, 52);
+      const mat = new THREE.MeshBasicMaterial({
+        color: arm.colors[i], transparent:true, opacity: 0.9 - i*0.1,
+      });
+      const torus = new THREE.Mesh(geo, mat);
+      const a = arm.off + i * (Math.PI/8);
+      torus.position.set(Math.cos(a)*r*0.82, i*0.065, Math.sin(a)*r*0.35);
+      torus.rotation.x = Math.PI/2;
+      spiralGroup.add(torus);
+    });
+  });
+
+  // Base ring
+  const bGeo = new THREE.TorusGeometry(radii[1]*1.6, 0.005, 6, 64);
+  const bMat = new THREE.MeshBasicMaterial({ color:0x00ffaa, transparent:true, opacity:0.45 });
+  const bRing = new THREE.Mesh(bGeo, bMat);
+  bRing.rotation.x = Math.PI/2;
+  spiralGroup.add(bRing);
+
+  // Seed sphere
+  spiralGroup.add(new THREE.Mesh(
+    new THREE.SphereGeometry(0.02, 16, 16),
+    new THREE.MeshBasicMaterial({ color:0xffffff })
+  ));
+
+  // Pillar
+  const pillar = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.005, 0.005, 0.9, 6),
+    new THREE.MeshBasicMaterial({ color:0x00ffaa, transparent:true, opacity:0.22 })
+  );
+  pillar.position.y = 0.45;
+  pillar.name = 'pillar';
+  spiralGroup.add(pillar);
+
+  // Start directly in front so user sees it immediately
+  spiralGroup.position.set(0, -0.3, -2.5);
+  scene.add(spiralGroup);
+}
+
+// ── Render loop ───────────────────────────────────────
+function loop() {
+  requestAnimationFrame(loop);
+  spiralTick += 0.014;
+
+  // Smoothly slerp camera quaternion toward device orientation
+  if (hasOrientation) {
+    qSmooth.slerp(qDevice, 0.08);
+    camera.quaternion.copy(qSmooth);
+  }
+
+  // Spiral self-rotates
+  spiralGroup.rotation.y = spiralTick;
+
+  // Pillar pulse
+  const pillar = spiralGroup.getObjectByName('pillar');
+  if (pillar) pillar.material.opacity = 0.12 + 0.1 * Math.sin(spiralTick * 2);
+
+  renderer.render(scene, camera);
+}
+</script>
+</body>
+</html>
