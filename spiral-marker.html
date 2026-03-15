@@ -3,272 +3,152 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>THE SPIRAL — Portsmouth</title>
-
-<!--
-  ═══════════════════════════════════════════════════════════
-   THE SPIRAL PROJECT — Portsmouth Fountain Marker
-   shan-ar-tools / spiral-marker.html
-
-   SETUP (do this once):
-   1. Go to: https://hiukim.github.io/mind-ar-js-doc/tools/compile
-   2. Upload fountain_1.jpg
-   3. Click Start → download targets.mind
-   4. Put targets.mind in the same folder as this file
-   5. Push both to GitHub Pages (shan-ar-tools repo)
-   6. Open URL on phone, point camera at the fountain photo/printout
-
-   REPO STRUCTURE:
-   shan-ar-tools/
-   ├── index.html
-   ├── spiral-marker.html   ← this file
-   ├── targets.mind         ← compiled from fountain_1.jpg
-   ├── fountain_1.jpg
-   └── ar-card/
-       └── index.html
-  ═══════════════════════════════════════════════════════════
--->
-
+<title>THE SPIRAL — Door Marker</title>
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
-
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 html, body { width:100%; height:100%; overflow:hidden; background:#000; }
-
-/* ── SPLASH ── */
 #splash {
   position:fixed; inset:0;
-  background:radial-gradient(ellipse at center, #000a14 0%, #000005 100%);
-  display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  z-index:9999; text-align:center; padding:30px; gap:16px;
-  font-family:'Share Tech Mono', monospace;
-  transition:opacity 1s ease;
+  background:radial-gradient(ellipse at center,#000a14,#000005);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:14px; padding:30px; text-align:center; z-index:9999;
+  font-family:'Share Tech Mono',monospace; transition:opacity 1s;
 }
 #splash.hide { opacity:0; pointer-events:none; }
-.s-ring {
-  width:54px; height:54px;
-  border:2px solid transparent;
-  border-top-color:#00ffaa; border-right-color:#00aaff;
-  border-radius:50%; animation:spin 1.1s linear infinite;
-}
-.s-title { color:#00ffaa; font-size:1.5em; letter-spacing:0.35em; text-shadow:0 0 20px #00ffaa; }
-.s-sub { color:#007755; font-size:0.68em; letter-spacing:0.15em; line-height:2; max-width:260px; }
-.s-target {
-  width:120px; height:90px; border:1px solid #00ffaa25;
-  overflow:hidden; border-radius:3px; box-shadow:0 0 25px #00ffaa10;
-}
-.s-target img { width:100%; height:100%; object-fit:cover; opacity:0.65; filter:saturate(0.3); }
-.s-hint { color:#003322; font-size:0.58em; letter-spacing:0.2em; }
-
-/* ── HUD ── */
+.s-ring { width:48px; height:48px; border:2px solid transparent; border-top-color:#00ffaa; border-right-color:#00aaff; border-radius:50%; animation:spin 1.1s linear infinite; }
+.s-title { color:#00ffaa; font-size:1.4rem; letter-spacing:0.35em; text-shadow:0 0 18px #00ffaa; }
+.s-sub { color:#007755; font-size:0.65rem; letter-spacing:0.14em; line-height:1.9; }
 #hud { position:fixed; inset:0; pointer-events:none; z-index:100; display:none; }
-.corner { position:absolute; width:20px; height:20px; border-color:#00ffaa35; border-style:solid; }
-.c-tl { top:12px; left:12px;  border-width:1px 0 0 1px; }
-.c-tr { top:12px; right:12px; border-width:1px 1px 0 0; }
-.c-bl { bottom:12px; left:12px;  border-width:0 0 1px 1px; }
-.c-br { bottom:12px; right:12px; border-width:0 1px 1px 0; }
-#hud-top {
-  position:absolute; top:15px; left:50%; transform:translateX(-50%);
-  font-family:'Share Tech Mono', monospace; font-size:0.58rem;
-  letter-spacing:0.3em; color:#00ffaa40;
-}
+.corner { position:absolute; width:20px; height:20px; border-color:rgba(0,255,170,0.35); border-style:solid; }
+.ctl { top:12px; left:12px; border-width:1px 0 0 1px; }
+.ctr { top:12px; right:12px; border-width:1px 1px 0 0; }
+.cbl { bottom:12px; left:12px; border-width:0 0 1px 1px; }
+.cbr { bottom:12px; right:12px; border-width:0 1px 1px 0; }
 #hud-status {
-  position:absolute; bottom:22px; left:50%; transform:translateX(-50%);
-  font-family:'Share Tech Mono', monospace; font-size:0.65rem;
-  letter-spacing:0.18em; color:#00ffaa;
-  text-shadow:0 0 10px #00ffaa70;
-  background:#00110a90; border:1px solid #00ffaa20;
-  padding:7px 22px; border-radius:2px;
-  backdrop-filter:blur(4px); transition:color 0.5s, text-shadow 0.5s;
-  white-space:nowrap;
+  position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
+  font-family:'Share Tech Mono',monospace; font-size:0.62rem; letter-spacing:0.15em;
+  color:#00ffaa; text-shadow:0 0 10px #00ffaa70;
+  background:rgba(0,17,10,0.9); border:1px solid rgba(0,255,170,0.2);
+  padding:7px 20px; border-radius:2px; white-space:nowrap;
 }
-
-/* Scanlines */
 #scanlines {
-  position:fixed; inset:0;
-  background:repeating-linear-gradient(
-    0deg, transparent, transparent 2px,
-    rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px
-  );
-  pointer-events:none; z-index:50;
+  position:fixed; inset:0; pointer-events:none; z-index:50;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);
 }
-
 @keyframes spin { to { transform:rotate(360deg); } }
 </style>
 </head>
 <body>
-
-<!-- SPLASH -->
 <div id="splash">
   <div class="s-title">THE SPIRAL</div>
   <div class="s-ring"></div>
-  <div class="s-target">
-    <img src="./fountain_1.jpg" alt="Portsmouth fountain marker"/>
-  </div>
-  <div class="s-sub">
-    POINT YOUR CAMERA<br>
-    AT THE PORTSMOUTH FOUNTAIN<br>
-    THE SPIRAL WILL EMERGE
-  </div>
-  <div class="s-hint">SPIRAL PROJECT · PORTSMOUTH · 2026</div>
+  <div class="s-sub">POINT YOUR CAMERA AT YOUR DOOR<br>THE SPIRAL WILL EMERGE</div>
 </div>
-
-<!-- SCANLINES -->
 <div id="scanlines"></div>
-
-<!-- HUD -->
 <div id="hud">
-  <div class="corner c-tl"></div>
-  <div class="corner c-tr"></div>
-  <div class="corner c-bl"></div>
-  <div class="corner c-br"></div>
-  <div id="hud-top">SPIRAL PROJECT · PORTSMOUTH</div>
-  <div id="hud-status">SEARCHING FOR MARKER...</div>
+  <div class="corner ctl"></div><div class="corner ctr"></div>
+  <div class="corner cbl"></div><div class="corner cbr"></div>
+  <div id="hud-status">SEARCHING FOR DOOR...</div>
 </div>
 
-<!-- ══════════════════════════════════════════
-     A-FRAME SCENE
-     ══════════════════════════════════════════ -->
 <a-scene
   mindar-image="imageTargetSrc:./targets.mind; autoStart:true; uiLoading:no; uiError:no; uiScanning:no;"
   color-space="sRGB"
   renderer="colorManagement:true; physicallyCorrectLights:true"
   vr-mode-ui="enabled:false"
-  device-orientation-permission-ui="enabled:false"
->
+  device-orientation-permission-ui="enabled:false">
 
   <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
 
-  <!-- ── ANCHOR — everything tracks the fountain marker ── -->
   <a-entity mindar-image-target="targetIndex:0" id="anchor">
 
-    <!-- Faint ground plane at marker level -->
-    <a-plane
-      rotation="-90 0 0"
-      width="1.6" height="1.6"
-      color="#001a2e"
-      material="transparent:true; opacity:0.2; side:double">
-    </a-plane>
+    <!-- Spiral positioned at your tapped location: X=0.075 Y=0.007 -->
+    <a-entity position="0.075 0.007 0">
 
-    <!-- Base glow ring -->
-    <a-torus
-      position="0 0.005 0"
-      rotation="90 0 0"
-      radius="0.3" radius-tubular="0.004"
-      color="#00ffaa"
-      material="emissive:#00ffaa; emissiveIntensity:2.5; transparent:true; opacity:0.55"
-      animation="property:rotation; from:90 0 0; to:90 360 0; loop:true; dur:5000; easing:linear">
-    </a-torus>
+      <!-- Base glow ring -->
+      <a-torus position="0 0 0" rotation="90 0 0" radius="0.12" radius-tubular="0.004"
+        color="#00ffaa" material="emissive:#00ffaa;emissiveIntensity:2.5;transparent:true;opacity:0.55"
+        animation="property:rotation;from:90 0 0;to:90 360 0;loop:true;dur:5000;easing:linear">
+      </a-torus>
 
-    <!-- Central seed sphere -->
-    <a-sphere
-      position="0 0.01 0"
-      radius="0.022"
-      color="#ffffff"
-      material="emissive:#ffffff; emissiveIntensity:6; transparent:true; opacity:0.95"
-      animation="property:scale; from:1 1 1; to:1.5 1.5 1.5; loop:true; dur:1100; dir:alternate; easing:easeInOutSine">
-    </a-sphere>
+      <!-- Seed sphere -->
+      <a-sphere position="0 0 0.01" radius="0.012"
+        color="#ffffff" material="emissive:#ffffff;emissiveIntensity:6;transparent:true;opacity:0.95"
+        animation="property:scale;from:1 1 1;to:1.5 1.5 1.5;loop:true;dur:1100;dir:alternate;easing:easeInOutSine">
+      </a-sphere>
 
-    <!-- Vertical light pillar -->
-    <a-cylinder
-      position="0 0.5 0"
-      radius="0.01" height="1.0"
-      color="#00ffaa"
-      material="emissive:#00ffaa; emissiveIntensity:2; transparent:true; opacity:0.15; side:double"
-      animation="property:material.opacity; from:0.05; to:0.28; loop:true; dur:2200; dir:alternate; easing:easeInOutSine">
-    </a-cylinder>
+      <!-- Spiral root — rotates -->
+      <a-entity animation="property:rotation;from:0 0 0;to:0 360 0;loop:true;dur:18000;easing:linear">
 
-    <!-- φ symbol floating above -->
-    <a-text
-      value="φ"
-      position="0 0.92 0"
-      align="center"
-      color="#00ffaa"
-      width="0.9"
-      animation="property:position; from:0 0.89 0; to:0 0.96 0; loop:true; dur:3200; dir:alternate; easing:easeInOutSine">
-    </a-text>
+        <!-- ARM CYAN -->
+        <a-entity rotation="0 0 0">
+          <a-torus position="0.016 0 0" radius="0.016" radius-tubular="0.003" color="#00ffee" material="emissive:#00ffee;emissiveIntensity:4" rotation="90 0 0"></a-torus>
+          <a-torus position="0.040 0.018 0" radius="0.028" radius-tubular="0.0025" color="#00ffcc" material="emissive:#00ffcc;emissiveIntensity:3" rotation="90 0 20"></a-torus>
+          <a-torus position="0.072 0.044 0" radius="0.046" radius-tubular="0.002" color="#00ffaa" material="emissive:#00ffaa;emissiveIntensity:2.5" rotation="90 0 38"></a-torus>
+          <a-torus position="0.116 0.072 0" radius="0.074" radius-tubular="0.0015" color="#00ee99" material="emissive:#00ee99;emissiveIntensity:2" rotation="90 0 55"></a-torus>
+        </a-entity>
 
-    <!-- ══════════════════════════════════
-         SPIRAL ROOT — slow rotation
-         4 arms × 5 rings = golden spiral
-         ══════════════════════════════════ -->
-    <a-entity
-      id="spiral-root"
-      position="0 0.01 0"
-      animation="property:rotation; from:0 0 0; to:0 360 0; loop:true; dur:20000; easing:linear">
+        <!-- ARM GOLD 90 -->
+        <a-entity rotation="0 90 0">
+          <a-torus position="0.016 0 0" radius="0.016" radius-tubular="0.003" color="#ffee00" material="emissive:#ffee00;emissiveIntensity:4" rotation="90 0 0"></a-torus>
+          <a-torus position="0.040 0.018 0" radius="0.028" radius-tubular="0.0025" color="#ffcc00" material="emissive:#ffcc00;emissiveIntensity:3" rotation="90 0 20"></a-torus>
+          <a-torus position="0.072 0.044 0" radius="0.046" radius-tubular="0.002" color="#ffaa00" material="emissive:#ffaa00;emissiveIntensity:2.5" rotation="90 0 38"></a-torus>
+          <a-torus position="0.116 0.072 0" radius="0.074" radius-tubular="0.0015" color="#ff8800" material="emissive:#ff8800;emissiveIntensity:2" rotation="90 0 55"></a-torus>
+        </a-entity>
 
-      <!-- ARM 0 · CYAN -->
-      <a-entity rotation="0 0 0">
-        <a-torus position="0.04 0 0"   radius="0.04"  radius-tubular="0.007" color="#00ffee" material="emissive:#00ffee;emissiveIntensity:4" rotation="90 0 0"></a-torus>
-        <a-torus position="0.10 0.05 0" radius="0.07"  radius-tubular="0.006" color="#00ffcc" material="emissive:#00ffcc;emissiveIntensity:3" rotation="90 0 20"></a-torus>
-        <a-torus position="0.18 0.12 0" radius="0.115" radius-tubular="0.005" color="#00ffaa" material="emissive:#00ffaa;emissiveIntensity:2.5" rotation="90 0 38"></a-torus>
-        <a-torus position="0.30 0.19 0" radius="0.185" radius-tubular="0.004" color="#00ee99" material="emissive:#00ee99;emissiveIntensity:2" rotation="90 0 55"></a-torus>
-        <a-torus position="0.48 0.31 0" radius="0.30"  radius-tubular="0.003" color="#00dd88" material="emissive:#00dd88;emissiveIntensity:1.6" rotation="90 0 72"></a-torus>
+        <!-- ARM MAGENTA 180 -->
+        <a-entity rotation="0 180 0">
+          <a-torus position="0.016 0 0" radius="0.016" radius-tubular="0.003" color="#ff00ff" material="emissive:#ff00ff;emissiveIntensity:4" rotation="90 0 0"></a-torus>
+          <a-torus position="0.040 0.018 0" radius="0.028" radius-tubular="0.0025" color="#ee00dd" material="emissive:#ee00dd;emissiveIntensity:3" rotation="90 0 20"></a-torus>
+          <a-torus position="0.072 0.044 0" radius="0.046" radius-tubular="0.002" color="#cc00bb" material="emissive:#cc00bb;emissiveIntensity:2.5" rotation="90 0 38"></a-torus>
+          <a-torus position="0.116 0.072 0" radius="0.074" radius-tubular="0.0015" color="#aa0099" material="emissive:#aa0099;emissiveIntensity:2" rotation="90 0 55"></a-torus>
+        </a-entity>
+
+        <!-- ARM BLUE 270 -->
+        <a-entity rotation="0 270 0">
+          <a-torus position="0.016 0 0" radius="0.016" radius-tubular="0.003" color="#00aaff" material="emissive:#00aaff;emissiveIntensity:4" rotation="90 0 0"></a-torus>
+          <a-torus position="0.040 0.018 0" radius="0.028" radius-tubular="0.0025" color="#0088ee" material="emissive:#0088ee;emissiveIntensity:3" rotation="90 0 20"></a-torus>
+          <a-torus position="0.072 0.044 0" radius="0.046" radius-tubular="0.002" color="#0066dd" material="emissive:#0066dd;emissiveIntensity:2.5" rotation="90 0 38"></a-torus>
+          <a-torus position="0.116 0.072 0" radius="0.074" radius-tubular="0.0015" color="#0055cc" material="emissive:#0055cc;emissiveIntensity:2" rotation="90 0 55"></a-torus>
+        </a-entity>
+
       </a-entity>
 
-      <!-- ARM 1 · GOLD (90°) -->
-      <a-entity rotation="0 90 0">
-        <a-torus position="0.04 0 0"    radius="0.04"  radius-tubular="0.007" color="#ffee00" material="emissive:#ffee00;emissiveIntensity:4" rotation="90 0 0"></a-torus>
-        <a-torus position="0.10 0.05 0" radius="0.07"  radius-tubular="0.006" color="#ffcc00" material="emissive:#ffcc00;emissiveIntensity:3" rotation="90 0 20"></a-torus>
-        <a-torus position="0.18 0.12 0" radius="0.115" radius-tubular="0.005" color="#ffaa00" material="emissive:#ffaa00;emissiveIntensity:2.5" rotation="90 0 38"></a-torus>
-        <a-torus position="0.30 0.19 0" radius="0.185" radius-tubular="0.004" color="#ff8800" material="emissive:#ff8800;emissiveIntensity:2" rotation="90 0 55"></a-torus>
-        <a-torus position="0.48 0.31 0" radius="0.30"  radius-tubular="0.003" color="#ff6600" material="emissive:#ff6600;emissiveIntensity:1.6" rotation="90 0 72"></a-torus>
-      </a-entity>
+      <!-- Light pillar -->
+      <a-cylinder position="0 0.2 0" radius="0.004" height="0.4"
+        color="#00ffaa" material="emissive:#00ffaa;emissiveIntensity:2;transparent:true;opacity:0.18;side:double"
+        animation="property:material.opacity;from:0.05;to:0.28;loop:true;dur:2200;dir:alternate;easing:easeInOutSine">
+      </a-cylinder>
 
-      <!-- ARM 2 · MAGENTA (180°) -->
-      <a-entity rotation="0 180 0">
-        <a-torus position="0.04 0 0"    radius="0.04"  radius-tubular="0.007" color="#ff00ff" material="emissive:#ff00ff;emissiveIntensity:4" rotation="90 0 0"></a-torus>
-        <a-torus position="0.10 0.05 0" radius="0.07"  radius-tubular="0.006" color="#ee00dd" material="emissive:#ee00dd;emissiveIntensity:3" rotation="90 0 20"></a-torus>
-        <a-torus position="0.18 0.12 0" radius="0.115" radius-tubular="0.005" color="#cc00bb" material="emissive:#cc00bb;emissiveIntensity:2.5" rotation="90 0 38"></a-torus>
-        <a-torus position="0.30 0.19 0" radius="0.185" radius-tubular="0.004" color="#aa0099" material="emissive:#aa0099;emissiveIntensity:2" rotation="90 0 55"></a-torus>
-        <a-torus position="0.48 0.31 0" radius="0.30"  radius-tubular="0.003" color="#880077" material="emissive:#880077;emissiveIntensity:1.6" rotation="90 0 72"></a-torus>
-      </a-entity>
-
-      <!-- ARM 3 · BLUE (270°) -->
-      <a-entity rotation="0 270 0">
-        <a-torus position="0.04 0 0"    radius="0.04"  radius-tubular="0.007" color="#00aaff" material="emissive:#00aaff;emissiveIntensity:4" rotation="90 0 0"></a-torus>
-        <a-torus position="0.10 0.05 0" radius="0.07"  radius-tubular="0.006" color="#0088ee" material="emissive:#0088ee;emissiveIntensity:3" rotation="90 0 20"></a-torus>
-        <a-torus position="0.18 0.12 0" radius="0.115" radius-tubular="0.005" color="#0066dd" material="emissive:#0066dd;emissiveIntensity:2.5" rotation="90 0 38"></a-torus>
-        <a-torus position="0.30 0.19 0" radius="0.185" radius-tubular="0.004" color="#0055cc" material="emissive:#0055cc;emissiveIntensity:2" rotation="90 0 55"></a-torus>
-        <a-torus position="0.48 0.31 0" radius="0.30"  radius-tubular="0.003" color="#0044aa" material="emissive:#0044aa;emissiveIntensity:1.6" rotation="90 0 72"></a-torus>
-      </a-entity>
+      <!-- φ symbol -->
+      <a-text value="φ" position="0 0.38 0" align="center" color="#00ffaa" width="0.4"
+        animation="property:position;from:0 0.35 0;to:0 0.42 0;loop:true;dur:3200;dir:alternate;easing:easeInOutSine">
+      </a-text>
 
     </a-entity>
-    <!-- end spiral-root -->
-
   </a-entity>
-  <!-- end anchor -->
-
 </a-scene>
 
 <script>
-  const splash    = document.getElementById('splash');
-  const hud       = document.getElementById('hud');
-  const hudStatus = document.getElementById('hud-status');
-
   document.querySelector('a-scene').addEventListener('loaded', () => {
     setTimeout(() => {
-      splash.classList.add('hide');
-      setTimeout(() => { splash.style.display = 'none'; hud.style.display = 'block'; }, 1000);
-    }, 1400);
+      const s = document.getElementById('splash');
+      s.classList.add('hide');
+      setTimeout(() => { s.style.display='none'; document.getElementById('hud').style.display='block'; }, 1000);
+    }, 1200);
   });
-
   document.querySelector('[mindar-image-target]').addEventListener('targetFound', () => {
-    hudStatus.style.color = '#00ffaa';
-    hudStatus.style.textShadow = '0 0 14px #00ffaa';
-    hudStatus.textContent = '✦ SPIRAL LOCKED — WALK AROUND IT ✦';
-    setTimeout(() => { hudStatus.textContent = 'SPIRAL PROJECT · PORTSMOUTH'; }, 4000);
+    document.getElementById('hud-status').style.color = '#00ffaa';
+    document.getElementById('hud-status').textContent = '✦ SPIRAL LOCKED ✦';
+    setTimeout(() => { document.getElementById('hud-status').textContent = 'SPIRAL PROJECT · LOCKED'; }, 3000);
   });
-
   document.querySelector('[mindar-image-target]').addEventListener('targetLost', () => {
-    hudStatus.style.color = '#ff4400';
-    hudStatus.style.textShadow = '0 0 10px #ff440060';
-    hudStatus.textContent = 'MARKER LOST — FIND THE FOUNTAIN';
+    document.getElementById('hud-status').style.color = '#ff4400';
+    document.getElementById('hud-status').textContent = 'MARKER LOST — FIND THE DOOR';
   });
 </script>
-
 </body>
 </html>
